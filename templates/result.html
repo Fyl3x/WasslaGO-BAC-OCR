@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Result - {{ data.filename }}{% endblock %}
+{% macro badge(status) -%}
+  <span class="badge b-{{ status }}">{{ {'ok':'OK','derived':'Derived','low_confidence':'Check','missing':'Missing','not_taken':'Not taken','conflict':'Conflict','unreadable':'Unreadable'}.get(status, status) }}</span>
+{%- endmacro %}
+{% block content %}
+<section class="card head">
+  <div>
+    <h1 dir="auto">{{ data.filename }}</h1>
+    <p class="muted small">{{ data.pages|length }} transcript{{ '' if data.pages|length == 1 else 's' }} &middot; {{ data.created }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('result_json', job_id=job_id, download=1) }}">&#8681; Download JSON</a>
+    <a class="btn btn-ghost" href="{{ url_for('result_json', job_id=job_id) }}" target="_blank" rel="noopener">View JSON</a>
+    <a class="btn btn-ghost" href="{{ url_for('index') }}">New file</a>
+  </div>
+</section>
+
+{% if data.pages|length > 1 %}
+<nav class="pagenav card">
+  {% for p in data.pages %}
+    <a href="#page-{{ p.page }}">Page {{ p.page }}
+      {% if p.error %}<span class="badge b-missing">error</span>
+      {% else %}<span class="badge b-{{ 'ok' if p.missing_fields|length == 0 and p.checks|selectattr('passed', 'equalto', false)|list|length == 0 else 'low_confidence' }}">{{ (p.completeness*100)|round|int }}%</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% for p in data.pages %}
+<article class="page" id="page-{{ p.page }}">
+  <h2 class="page-title">Transcript &mdash; page {{ p.page }} <span class="muted small">({{ p.source }}, {{ p.elapsed_s }} s)</span></h2>
+
+  {% if p.error %}
+    <div class="alert alert-error">{{ p.error }}</div>
+  {% else %}
+  <div class="summary">
+    <div class="stat"><b>{{ (p.completeness*100)|round|int }}%</b><span>fields found</span></div>
+    <div class="stat"><b>{{ (p.overall_confidence*100)|round|int }}%</b><span>mean confidence</span></div>
+    <div class="stat {{ 'bad' if p.missing_fields }}"><b>{{ p.missing_fields|length }}</b><span>missing</span></div>
+    <div class="stat {{ 'bad' if p.checks|selectattr('passed','equalto',false)|list|length }}"><b>{{ p.checks|selectattr('passed','equalto',true)|list|length }}/{{ p.checks|length }}</b><span>checks passed</span></div>
+  </div>
+
+  {% if p.missing_fields %}
+  <div class="alert alert-warn"><strong>Missing:</strong>
+    {% for k in p.missing_fields %}{{ p.fields[k].label_en }} <span class="ar" dir="rtl">({{ p.fields[k].label_ar }})</span>{{ ', ' if not loop.last }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3>Extracted fields</h3>
+    <table class="fields">
+      <thead><tr><th>Field</th><th>Value</th><th>Status</th><th>Conf.</th></tr></thead>
+      <tbody>
+      {% for key, f in p.fields.items() %}
+        <tr class="row-{{ f.status }}">
+          <td class="lbl">{{ f.label_en }}<br><span class="ar" dir="rtl">{{ f.label_ar }}</span></td>
+          <td class="val">
+            {% if f.value is none %}<span class="muted">&mdash; not found &mdash;</span>
+            {% else %}<span class="{{ 'mono' if key in ['registration_number','secret_code','serial_code','institution_code'] else '' }}" dir="auto">{{ f.value }}</span>{% endif %}
+            {% if f.note %}<div class="note">{{ f.note }}</div>{% endif %}
+          </td>
+          <td>{{ badge(f.status) }}</td>
+          <td><span class="conf"><i style="width: {{ (f.confidence*100)|round|int }}%"></i></span> {{ (f.confidence*100)|round|int }}%</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Grades table <span class="ar" dir="rtl">المادة / النقطة / المعامل / المجموع</span></h3>
+    {% if p.grades %}
+    <div class="scroll">
+    <table class="grades" dir="rtl">
+      <thead><tr><th>المادة<br><small>Subject</small></th><th>النقطة /20<br><small>Grade</small></th><th>المعامل<br><small>Coef.</small></th><th>المجموع<br><small>Total</small></th><th>الحالة<br><small>Status</small></th></tr></thead>
+      <tbody>
+      {% for r in p.grades %}
+        <tr class="g-{{ r.status }}">
+          <td class="subj">{{ r.subject or '—' }}{% if r.subject is none and r.subject_raw %}<div class="note" dir="auto">OCR: {{ r.subject_raw }}</div>{% endif %}</td>
+          <td class="num">{{ '%.2f'|format(r.grade) if r.grade is not none else '--' }}</td>
+          <td class="num">{{ r.coefficient if r.coefficient is not none else '--' }}</td>
+          <td class="num">{{ '%.2f'|format(r.total) if r.total is not none else '--' }}</td>
+          <td dir="ltr">{{ badge(r.status) }}{% for n in r.notes %}<div class="note">{{ n }}</div>{% endfor %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td>المجموع العام <small>Overall total</small></td><td></td>
+            <td class="num">{{ p.fields.coefficient_total.value if p.fields.coefficient_total.value is not none else '--' }}</td>
+            <td class="num">{{ p.fields.overall_total.value if p.fields.overall_total.value is not none else '--' }}</td><td></td></tr>
+        <tr><td>المعدل العام <small>Overall average</small></td><td class="num" colspan="3" dir="ltr">{{ p.fields.overall_average.value if p.fields.overall_average.value is not none else '--' }} / 20</td><td></td></tr>
+      </tfoot>
+    </table>
+    </div>
+    {% else %}<p class="muted">No grade rows could be extracted.</p>{% endif %}
+
+    <h4>Validation</h4>
+    <ul class="checks">
+      {% for c in p.checks %}
+        <li class="{{ 'pass' if c.passed else ('fail' if c.passed == false else 'na') }}">
+          <span class="mark">{{ '✔' if c.passed else ('✘' if c.passed == false else '–') }}</span>
+          <strong>{{ c.name }}</strong> <span class="muted">{{ c.detail }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% if p.notes %}<div class="card"><h4>Notes</h4><ul class="plain">{% for n in p.notes %}<li>{{ n }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <details class="card">
+    <summary>Debug: raw OCR text &amp; crops</summary>
+    <pre class="raw" dir="auto">{{ p.raw_text or '(none)' }}</pre>
+    {% if p.debug_images %}
+    <div class="dbg">
+      {% for label, fn in p.debug_images.items() %}
+        <figure><a href="{{ url_for('files', job_id=job_id, name=fn) }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ url_for('files', job_id=job_id, name=fn) }}" alt="{{ label }}"></a><figcaption>{{ label }}</figcaption></figure>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </details>
+  {% endif %}
+</article>
+{% endfor %}
+{% endblock %}

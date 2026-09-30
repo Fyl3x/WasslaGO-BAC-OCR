@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Extract data from a BAC transcript</h1>
+  <p class="muted">Upload one <strong>كشف نقاط البكالوريا</strong> as a scan, photo or PDF. Fields and the grades table
+     are extracted locally with Tesseract and checked arithmetically.</p>
+
+  {% if not tesseract.ok %}
+  <div class="alert alert-error"><strong>Tesseract problem:</strong> {{ tesseract.error }}<br>
+    See the README section &ldquo;System dependencies&rdquo;.</div>
+  {% else %}
+  <p class="muted small">OCR engine: Tesseract {{ tesseract.version }} &middot; languages: {{ tesseract.languages|join(', ') }}</p>
+  {% endif %}
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+  <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+    <label id="drop" class="drop" for="file">
+      <input id="file" type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+      <span class="drop-title">Choose a file or drop it here</span>
+      <span class="muted small">{{ exts|join(', ')|upper }} &middot; up to {{ max_mb }} MB &middot; PDFs: first {{ max_pages }} pages, one transcript per page</span>
+      <span id="picked" class="picked"></span>
+    </label>
+    <button class="btn" type="submit" {% if not tesseract.ok %}disabled{% endif %}>Extract</button>
+  </form>
+</section>
+<section class="card">
+  <h2>What is extracted</h2>
+  <ul class="cols">
+    <li>رقم التسجيل &mdash; registration number</li><li>بكالوريا دورة &mdash; session year</li>
+    <li>شعبة &mdash; branch</li><li>السيد (ة) &mdash; full name</li>
+    <li>المزداد (ة) في / بـ &mdash; birth date &amp; place</li><li>المؤسسة &mdash; institution name &amp; code</li>
+    <li>المادة / النقطة / المعامل / المجموع &mdash; grades table</li><li>المجموع العام &amp; المعدل العام</li>
+    <li>حرر بالجزائر في &mdash; issue place &amp; date</li><li>الرقم السري &mdash; secret code</li>
+    <li>الكود الطويل (USEPWD_BC) &mdash; serial code</li>
+  </ul>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='app.js') }}"></script>{% endblock %}

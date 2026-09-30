@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BAC Transcript OCR{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">BAC <span>OCR</span></a>
+    <span class="tag">كشف نقاط البكالوريا</span>
+  </header>
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="foot">Local OCR only &middot; nothing leaves this machine</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

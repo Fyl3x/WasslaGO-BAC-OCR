@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+uploads/*
+!uploads/.gitkeep
+outputs/
+samples/private/
+*.egg-info/
+.env
+.DS_Store

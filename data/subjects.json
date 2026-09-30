@@ -1,0 +1,37 @@
+{
+  "_comment": "Closed vocabulary of BAC transcript subjects. OCR output is fuzzy-matched against name_ar + aliases. Add new subjects/aliases here - no code change needed. 'branch_orders' lists the usual row order per branch; it is only used as a soft tie-breaker and to fill a single unreadable row.",
+  "subjects": [
+    {"id": "arabic", "name_ar": "اللغة العربية وآدابها", "name_fr": "Langue arabe et littérature", "aliases": ["اللغة العربية", "العربية وآدابها"]},
+    {"id": "philosophy", "name_ar": "الفلسفة", "name_fr": "Philosophie", "aliases": ["فلسفة"]},
+    {"id": "history_geo", "name_ar": "التاريخ والجغرافيا", "name_fr": "Histoire-Géographie", "aliases": ["التاريخ و الجغرافيا"]},
+    {"id": "french", "name_ar": "الفرنسية - لغة أجنبية أولى", "name_fr": "Français", "aliases": ["فرنسية - لغة أجنبية أولى", "اللغة الفرنسية", "الفرنسية", "لغة أجنبية أولى"]},
+    {"id": "english", "name_ar": "الإنجليزية - لغة أجنبية ثانية", "name_fr": "Anglais", "aliases": ["إنجليزية - لغة أجنبية ثانية", "اللغة الإنجليزية", "الإنجليزية", "لغة أجنبية ثانية"]},
+    {"id": "math", "name_ar": "الرياضيات", "name_fr": "Mathématiques", "aliases": ["رياضيات"]},
+    {"id": "amazigh", "name_ar": "اللغة الأمازيغية", "name_fr": "Tamazight", "aliases": ["الأمازيغية"]},
+    {"id": "islamic", "name_ar": "العلوم الإسلامية", "name_fr": "Sciences islamiques", "aliases": ["التربية الإسلامية"]},
+    {"id": "pe", "name_ar": "التربية البدنية والرياضية", "name_fr": "Éducation physique", "aliases": ["التربية البدنية"]},
+    {"id": "physics", "name_ar": "العلوم الفيزيائية", "name_fr": "Sciences physiques", "aliases": ["الفيزياء", "علوم فيزيائية"]},
+    {"id": "svt", "name_ar": "علوم الطبيعة والحياة", "name_fr": "Sciences naturelles", "aliases": ["العلوم الطبيعية"]},
+    {"id": "third_language", "name_ar": "اللغة الأجنبية الثالثة", "name_fr": "Troisième langue étrangère", "aliases": ["اللغة الأجنبية الثالثة الألمانية", "اللغة الأجنبية الثالثة الإسبانية", "اللغة الأجنبية الثالثة الإيطالية", "اللغة الألمانية", "اللغة الإسبانية", "اللغة الإيطالية", "لغة أجنبية ثالثة"]},
+    {"id": "economics", "name_ar": "الاقتصاد والمناجمنت", "name_fr": "Économie et management", "aliases": ["الاقتصاد والمناجمنت", "اقتصاد ومناجمنت"]},
+    {"id": "accounting", "name_ar": "التسيير المحاسبي والمالي", "name_fr": "Gestion comptable et financière", "aliases": ["المحاسبة والمالية", "التسيير المحاسبي"]},
+    {"id": "law", "name_ar": "القانون", "name_fr": "Droit", "aliases": ["قانون"]},
+    {"id": "techno_electrical", "name_ar": "التكنولوجيا - هندسة كهربائية", "name_fr": "Technologie - génie électrique", "aliases": ["هندسة كهربائية", "التكنولوجيا هندسة كهربائية"]},
+    {"id": "techno_mechanical", "name_ar": "التكنولوجيا - هندسة ميكانيكية", "name_fr": "Technologie - génie mécanique", "aliases": ["هندسة ميكانيكية", "التكنولوجيا هندسة ميكانيكية"]},
+    {"id": "techno_civil", "name_ar": "التكنولوجيا - هندسة مدنية", "name_fr": "Technologie - génie civil", "aliases": ["هندسة مدنية", "التكنولوجيا هندسة مدنية"]},
+    {"id": "techno_process", "name_ar": "التكنولوجيا - هندسة الطرائق", "name_fr": "Technologie - génie des procédés", "aliases": ["هندسة الطرائق", "التكنولوجيا هندسة الطرائق"]}
+  ],
+  "branches": [
+    {"id": "math", "name_ar": "رياضيات", "aliases": ["الرياضيات", "رياضيات"],
+     "order": ["math", "physics", "arabic", "svt", "history_geo", "french", "english", "philosophy", "amazigh", "islamic", "pe"]},
+    {"id": "experimental_sciences", "name_ar": "علوم تجريبية", "aliases": ["العلوم التجريبية", "علوم تجريبية"],
+     "order": ["svt", "physics", "math", "arabic", "french", "english", "philosophy", "history_geo", "amazigh", "islamic", "pe"]},
+    {"id": "letters_philosophy", "name_ar": "آداب وفلسفة", "aliases": ["آداب وفلسفة", "اداب وفلسفة"],
+     "order": ["arabic", "philosophy", "history_geo", "french", "english", "math", "amazigh", "islamic", "pe"]},
+    {"id": "foreign_languages", "name_ar": "لغات أجنبية", "aliases": ["لغات أجنبية", "لغات اجنبية"],
+     "order": ["arabic", "french", "english", "third_language", "philosophy", "history_geo", "math", "amazigh", "islamic", "pe"]},
+    {"id": "management_economics", "name_ar": "تسيير واقتصاد", "aliases": ["تسيير واقتصاد"],
+     "order": []},
+    {"id": "technical_math", "name_ar": "تقني رياضي", "aliases": ["تقني رياضي"], "order": []}
+  ]
+}

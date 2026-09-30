@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card center">
+  <div class="spinner" aria-hidden="true"></div>
+  <h1>Reading <span dir="auto">{{ filename }}</span>&hellip;</h1>
+  <p class="muted" id="status">Queued</p>
+  <p class="muted small">A scanned page takes roughly 10&ndash;15 seconds. This page updates automatically.</p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  const statusUrl = {{ url_for('job_status', job_id=job_id)|tojson }};
+  const statusEl = document.getElementById('status');
+  async function poll() {
+    try {
+      const r = await fetch(statusUrl, {cache: 'no-store'});
+      if (r.ok) {
+        const d = await r.json();
+        if (d.state === 'done') { window.location = d.url; return; }
+        if (d.state === 'error') { statusEl.textContent = 'Failed: ' + d.error; statusEl.className = 'alert alert-error'; return; }
+        statusEl.textContent = (d.state === 'running' ? 'Running OCR' : 'Queued') + ' - ' + d.elapsed + ' s';
+      }
+    } catch (e) { statusEl.textContent = 'Waiting for server...'; }
+    setTimeout(poll, 1500);
+  }
+  poll();
+</script>
+{% endblock %}
