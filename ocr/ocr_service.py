@@ -50,6 +50,9 @@ def configure() -> None:
     # We parallelise across cells ourselves; letting every tesseract process also spawn
     # OpenMP threads oversubscribes the CPU and can make single calls time out.
     os.environ.setdefault("OMP_THREAD_LIMIT", "1")
+    if Config.TESSDATA_DIR:
+        # Environment variable instead of --tessdata-dir: no quoting / backslash problems on Windows.
+        os.environ["TESSDATA_PREFIX"] = str(Config.TESSDATA_DIR).strip().strip('"').rstrip("\\/")
     if Config.TESSERACT_CMD:
         pytesseract.pytesseract.tesseract_cmd = Config.TESSERACT_CMD
 
@@ -61,7 +64,7 @@ def check_tesseract() -> dict:
     if not (shutil.which(cmd) or os.path.exists(cmd)):
         return {"ok": False, "error": f"Tesseract binary not found ('{cmd}'). See README."}
     try:
-        langs = set(pytesseract.get_languages(config=_tessdata_flag()))
+        langs = set(pytesseract.get_languages())
         version = str(pytesseract.get_tesseract_version())
     except Exception as exc:  # pragma: no cover - environment specific
         return {"ok": False, "error": str(exc)}
@@ -72,7 +75,7 @@ def check_tesseract() -> dict:
 
 
 def _tessdata_flag() -> str:
-    return f'--tessdata-dir "{Config.TESSDATA_DIR}"' if Config.TESSDATA_DIR else ""
+    return ""   # the folder is passed through TESSDATA_PREFIX (see configure())
 
 
 def _run(img: np.ndarray, lang: str, psm: int, extra: str = "") -> OcrResult:

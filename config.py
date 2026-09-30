@@ -30,9 +30,9 @@ class Config:
 
     # --- Tesseract -------------------------------------------------------
     # Path to the tesseract binary (leave empty to use PATH).
-    TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "")
+    TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "").strip().strip('"')
     # Optional folder with extra traineddata (e.g. tessdata_best for better Arabic).
-    TESSDATA_DIR = os.environ.get("TESSDATA_DIR", "")
+    TESSDATA_DIR = os.environ.get("TESSDATA_DIR", "").strip().strip('"')
     OCR_LANG_ARABIC = os.environ.get("OCR_LANG_ARABIC", "ara")
     OCR_LANG_MIXED = os.environ.get("OCR_LANG_MIXED", "ara+fra")
     OCR_LANG_LATIN = os.environ.get("OCR_LANG_LATIN", "eng")
