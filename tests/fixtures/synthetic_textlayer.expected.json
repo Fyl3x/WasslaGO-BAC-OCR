@@ -1,0 +1,85 @@
+{
+  "registration_number": "37631706",
+  "session_year": 2023,
+  "branch": "علوم تجريبية",
+  "full_name": "بن عمر يوسف",
+  "birth_date": "2005-03-14",
+  "birth_place": "وهران - وهران",
+  "institution_name": "ثانوية الأمير عبد القادر - وهران",
+  "institution_code": "31013001",
+  "overall_total": "407.42",
+  "coefficient_total": 30,
+  "overall_average": "13.58",
+  "issue_place": "الجزائر",
+  "issue_date": "2023-07-15",
+  "secret_code": "ES45aYFu",
+  "serial_code": "1391500080636083/4FJPrzrXUSEPWD_BC---1374068124",
+  "grades": [
+    {
+      "subject": "علوم الطبيعة والحياة",
+      "grade": 8.0,
+      "coefficient": 6,
+      "total": 48.0
+    },
+    {
+      "subject": "العلوم الفيزيائية",
+      "grade": 15.0,
+      "coefficient": 5,
+      "total": 75.0
+    },
+    {
+      "subject": "الرياضيات",
+      "grade": 19.5,
+      "coefficient": 5,
+      "total": 97.5
+    },
+    {
+      "subject": "اللغة العربية وآدابها",
+      "grade": 18.75,
+      "coefficient": 3,
+      "total": 56.25
+    },
+    {
+      "subject": "الفرنسية - لغة أجنبية أولى",
+      "grade": 18.0,
+      "coefficient": 2,
+      "total": 36.0
+    },
+    {
+      "subject": "الإنجليزية - لغة أجنبية ثانية",
+      "grade": 7.0,
+      "coefficient": 2,
+      "total": 14.0
+    },
+    {
+      "subject": "الفلسفة",
+      "grade": 10.0,
+      "coefficient": 2,
+      "total": 20.0
+    },
+    {
+      "subject": "التاريخ والجغرافيا",
+      "grade": 7.75,
+      "coefficient": 2,
+      "total": 15.5
+    },
+    {
+      "subject": "اللغة الأمازيغية",
+      "grade": null,
+      "coefficient": 2,
+      "total": null
+    },
+    {
+      "subject": "العلوم الإسلامية",
+      "grade": 13.75,
+      "coefficient": 2,
+      "total": 27.5
+    },
+    {
+      "subject": "التربية البدنية والرياضية",
+      "grade": 17.67,
+      "coefficient": 1,
+      "total": 17.67
+    }
+  ]
+}

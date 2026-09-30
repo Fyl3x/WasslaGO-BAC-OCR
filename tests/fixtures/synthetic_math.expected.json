@@ -1,0 +1,85 @@
+{
+  "registration_number": "34493909",
+  "session_year": 2024,
+  "branch": "رياضيات",
+  "full_name": "قاسمي أمينة",
+  "birth_date": "2006-11-02",
+  "birth_place": "قسنطينة - قسنطينة",
+  "institution_name": "ثانوية مالك بن نبي - قسنطينة",
+  "institution_code": "25013007",
+  "overall_total": "438.42",
+  "coefficient_total": 29,
+  "overall_average": "15.12",
+  "issue_place": "الجزائر",
+  "issue_date": "2024-07-15",
+  "secret_code": "XmEUC72K",
+  "serial_code": "1587840057566828/nsrbnxnjUSEPWD_BC---1885882768",
+  "grades": [
+    {
+      "subject": "الرياضيات",
+      "grade": 19.75,
+      "coefficient": 7,
+      "total": 138.25
+    },
+    {
+      "subject": "العلوم الفيزيائية",
+      "grade": 19.5,
+      "coefficient": 6,
+      "total": 117.0
+    },
+    {
+      "subject": "اللغة العربية وآدابها",
+      "grade": 6.75,
+      "coefficient": 3,
+      "total": 20.25
+    },
+    {
+      "subject": "علوم الطبيعة والحياة",
+      "grade": 7.25,
+      "coefficient": 2,
+      "total": 14.5
+    },
+    {
+      "subject": "التاريخ والجغرافيا",
+      "grade": 7.25,
+      "coefficient": 2,
+      "total": 14.5
+    },
+    {
+      "subject": "الفرنسية - لغة أجنبية أولى",
+      "grade": 11.75,
+      "coefficient": 2,
+      "total": 23.5
+    },
+    {
+      "subject": "الإنجليزية - لغة أجنبية ثانية",
+      "grade": 19.25,
+      "coefficient": 2,
+      "total": 38.5
+    },
+    {
+      "subject": "الفلسفة",
+      "grade": 8.5,
+      "coefficient": 2,
+      "total": 17.0
+    },
+    {
+      "subject": "اللغة الأمازيغية",
+      "grade": null,
+      "coefficient": 2,
+      "total": null
+    },
+    {
+      "subject": "العلوم الإسلامية",
+      "grade": 17.75,
+      "coefficient": 2,
+      "total": 35.5
+    },
+    {
+      "subject": "التربية البدنية والرياضية",
+      "grade": 19.42,
+      "coefficient": 1,
+      "total": 19.42
+    }
+  ]
+}

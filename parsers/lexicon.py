@@ -17,13 +17,18 @@ def _lex() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _best(word: str, vocab: list[str], threshold: float) -> str | None:
+def _best(word: str, vocab: list[str], threshold: float, max_len_diff: int = 1) -> str | None:
+    """Closest vocabulary entry, but only when the word is a plausible OCR corruption of it:
+    similar length and high similarity (skeleton form ignores dot-only differences)."""
     w, ws = normalize_ar(word), skeleton_ar(word)
     if len(w) < 3:
         return None
     best, score = None, 0.0
     for cand in vocab:
-        s = max(fuzz.ratio(w, normalize_ar(cand)), 0.97 * fuzz.ratio(ws, skeleton_ar(cand)))
+        c = normalize_ar(cand)
+        if abs(len(c) - len(w)) > max_len_diff:
+            continue
+        s = max(fuzz.ratio(w, c), 0.97 * fuzz.ratio(ws, skeleton_ar(cand)))
         if s > score:
             best, score = cand, s
     return best if score >= threshold else None
@@ -35,12 +40,12 @@ def fix_wilaya(piece: str, threshold: float = 84) -> str:
     return _best(piece, _lex()["wilayas"], threshold) or piece
 
 
-def fix_words(text: str, threshold: float = 80) -> str:
+def fix_words(text: str, threshold: float = 88) -> str:
     """Repair common institution words token by token (never invents words)."""
     vocab = _lex()["institution_words"]
     out = []
     for tok in text.split():
-        out.append(tok if tok == "-" else (_best(tok, vocab, threshold) or tok))
+        out.append(tok if tok == "-" else (_best(tok, vocab, threshold, max_len_diff=0) or tok))
     return " ".join(out)
 
 

@@ -130,8 +130,10 @@ def read_digits(img: np.ndarray, psm: int = 7, whitelist: str = DIGITS_WHITELIST
                 f"-c tessedit_char_whitelist={whitelist}")
 
 
-def read_arabic(img: np.ndarray, psm: int = 7) -> OcrResult:
-    return _run(img, Config.OCR_LANG_MIXED, psm)
+def read_arabic(img: np.ndarray, psm: int = 7, mixed: bool = False) -> OcrResult:
+    """Arabic text. The Arabic-only model is the default because the French model injects
+    Latin noise into short Arabic words; `mixed=True` adds French for genuinely bilingual text."""
+    return _run(img, Config.OCR_LANG_MIXED if mixed else Config.OCR_LANG_ARABIC, psm)
 
 
 def read_latin(img: np.ndarray, psm: int = 7, whitelist: str = CODE_WHITELIST) -> OcrResult:

@@ -1,0 +1,73 @@
+{
+  "registration_number": "31907483",
+  "session_year": 2023,
+  "branch": "آداب وفلسفة",
+  "full_name": "حمدي كريم",
+  "birth_date": "2004-08-21",
+  "birth_place": "سطيف - سطيف",
+  "institution_name": "ثانوية ابن خلدون - سطيف",
+  "institution_code": "19013012",
+  "overall_total": "344.67",
+  "coefficient_total": 27,
+  "overall_average": "12.77",
+  "issue_place": "الجزائر",
+  "issue_date": "2023-07-15",
+  "secret_code": "pZHN9PHC",
+  "serial_code": "1232860129040479/2BZ6EC27USEPWD_BC---1972510273",
+  "grades": [
+    {
+      "subject": "اللغة العربية وآدابها",
+      "grade": 9.75,
+      "coefficient": 6,
+      "total": 58.5
+    },
+    {
+      "subject": "الفلسفة",
+      "grade": 15.25,
+      "coefficient": 6,
+      "total": 91.5
+    },
+    {
+      "subject": "التاريخ والجغرافيا",
+      "grade": 14.5,
+      "coefficient": 4,
+      "total": 58.0
+    },
+    {
+      "subject": "الفرنسية - لغة أجنبية أولى",
+      "grade": 8.0,
+      "coefficient": 3,
+      "total": 24.0
+    },
+    {
+      "subject": "الإنجليزية - لغة أجنبية ثانية",
+      "grade": 11.75,
+      "coefficient": 3,
+      "total": 35.25
+    },
+    {
+      "subject": "الرياضيات",
+      "grade": 15.5,
+      "coefficient": 2,
+      "total": 31.0
+    },
+    {
+      "subject": "اللغة الأمازيغية",
+      "grade": null,
+      "coefficient": 2,
+      "total": null
+    },
+    {
+      "subject": "العلوم الإسلامية",
+      "grade": 13.5,
+      "coefficient": 2,
+      "total": 27.0
+    },
+    {
+      "subject": "التربية البدنية والرياضية",
+      "grade": 19.42,
+      "coefficient": 1,
+      "total": 19.42
+    }
+  ]
+}

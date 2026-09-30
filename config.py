@@ -7,6 +7,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+try:  # optional: read settings from a local .env file
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
+
 
 def _env_bool(name: str, default: bool) -> bool:
     return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}

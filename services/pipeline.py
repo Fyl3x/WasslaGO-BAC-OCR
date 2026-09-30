@@ -80,9 +80,10 @@ def process_scanned_page(page: PageInput, out_dir: Path | None) -> TranscriptRes
 
 def process_text_page(page: PageInput) -> TranscriptResult:
     res = TranscriptResult(page=page.index, source="text-layer", raw_text=page.text or "")
-    zones = text_layer.zones_from_text(page.text or "")
-    raw_table, notes = text_layer.table_from_words(page.words or [])
-    zones.avg_candidates = text_layer.average_from_words(page.words or [])
+    rev = text_layer.detect_reversed(page.text or "")
+    zones = text_layer.zones_from_text(page.text or "", rev)
+    raw_table, notes = text_layer.table_from_words(page.words or [], rev)
+    zones.avg_candidates = text_layer.average_from_words(page.words or [], rev)
     branch = _branch_from(zones)
     rows, overall, coefsum, checks, tnotes = parse_table(raw_table, branch, load_vocabulary())
     _finish(res, zones, rows, overall, coefsum, checks, tnotes + notes)

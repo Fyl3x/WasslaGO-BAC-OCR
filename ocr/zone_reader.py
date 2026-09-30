@@ -46,6 +46,7 @@ class RawZones:
     reg_candidates: list[str] = field(default_factory=list)
     avg_candidates: list[str] = field(default_factory=list)
     secret_candidates: list[str] = field(default_factory=list)
+    secret_glyph_heights: list[float] = field(default_factory=list)   # per glyph, relative to cap height
     serial_candidates: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     debug: dict[str, np.ndarray] = field(default_factory=dict)
@@ -248,13 +249,22 @@ _LINE_ATTEMPTS = [("ara", 88, True, 7), ("ara", 72, True, 7), ("ara", 104, True,
 _MIN_WORD_CONF = 25
 
 
+def _keep_word(w) -> bool:
+    """Drop junk (low-confidence Latin/digit noise, stray 1-2 letter tokens) but keep
+    Arabic words of 3+ letters even when Tesseract is unsure about them."""
+    if w.conf >= _MIN_WORD_CONF:
+        return True
+    letters = re.findall(r"[\u0621-\u064A]", w.text)
+    return len(letters) >= 3
+
+
 def _ocr_line_best(crop: np.ndarray):
     """OCR a text line with several lang / scale / threshold / PSM recipes and keep the most
     confident reading. Stops early as soon as a clean result is found."""
     best = None
     for lang, height, binar, psm in _LINE_ATTEMPTS:
         prepared = prepare_for_ocr(crop, target_height=height, binarize_crop=binar)
-        words = [w for w in ocr.read_words(prepared, lang, psm=psm) if w.conf >= _MIN_WORD_CONF]
+        words = [w for w in ocr.read_words(prepared, lang, psm=psm) if _keep_word(w)]
         confs = [w.conf for w in words]
         conf = float(np.mean(confs)) if confs else -1.0
         # words weigh in so an empty / one-token reading never beats a full line
@@ -286,6 +296,16 @@ def _read_line(layout: PageLayout, zone: str, y0: int, y1: int, x0: int, x1: int
                 txt = ocr.read_digits(sub, psm=7, whitelist="0123456789-/.").text
                 lr.numbers.append(txt.strip())
     lr.digits_line = ocr.read_digits(prepared, psm=7, whitelist="0123456789-/. ").text
+    if zone == "year":
+        # the year is the left-most token of this right-aligned line: read it on its own
+        # several ways and let parse_year vote
+        sub = crop[:, : max(40, int(0.42 * crop.shape[1]))]
+        for height in (64, 96, 128):
+            for psm in (7, 8):
+                txt = re.sub(r"\D", "", ocr.read_digits(prepare_for_ocr(sub, height, pad=24), psm=psm,
+                                                        whitelist="0123456789").text)
+                if len(txt) == 4:
+                    lr.numbers.append(txt)
     if zone in ("year", "birth", "institution", "issue") and not lr.numbers:
         # the Arabic model did not emit digit words: ask the digits-only engine for them
         for w in ocr.read_words(prepared, "eng", psm=7, extra="-c tessedit_char_whitelist=0123456789-/."):
@@ -315,15 +335,20 @@ def read_registration(layout: PageLayout, zones: RawZones, header_bands) -> None
     W = t.width
     ya = t.y_top - int(0.60 * W)
     yb = t.y_top - int(0.20 * W)
-    xa, xb = t.x0 - 10, t.x0 + int(0.34 * W)
+    xa, xb = t.x0 - int(0.07 * W), t.x0 + int(0.34 * W)
     for name, bw in _bw_variants(layout):
-        region = bw[ya:yb, xa:xb]
+        # the page's ornamental frame is a column that is inked over most of the region's
+        # height: start the crop just to the right of it
+        cover = (bw[ya:yb, xa:xb] > 0).mean(axis=0)
+        frame = np.where(cover > 0.45)[0]
+        xa_v = xa + int(frame.max()) + 10 if len(frame) and frame.max() < 0.6 * (xb - xa) else xa
+        region = bw[ya:yb, xa_v:xb]
         clean = region.copy()
         clean[_hrule_mask(region, 0.5) > 0] = 0
         bands = text_bands(clean, thr=3, min_h=int(0.012 * W))
         cands: list[str] = []
         for b0, b1 in bands:
-            crop = _tight_crop(layout, xa, ya + b0 - 6, xb, ya + b1 + 6, bw=bw)
+            crop = _tight_crop(layout, xa_v, ya + b0 - 6, xb, ya + b1 + 6, bw=bw)
             if crop.size == 0:
                 continue
             aspect = crop.shape[1] / max(1, crop.shape[0])
@@ -394,19 +419,63 @@ def read_average_and_issue(layout: PageLayout, zones: RawZones) -> None:
 # ---------------------------------------------------------------------------
 # secret code and serial code
 # ---------------------------------------------------------------------------
-def _latin_variants(crop: np.ndarray, whitelist: str | None = None) -> list[str]:
-    """OCR one crop of case-sensitive alphanumerics several ways (scale x binarisation x
-    page-segmentation mode). The caller votes across the returned strings."""
+_VARIANT_PHASES = [
+    [(72, True, 7), (100, True, 7), (72, False, 13), (100, False, 13)],
+    [(60, True, 7), (88, True, 8), (120, True, 7), (88, False, 7), (64, True, 13), (110, True, 13)],
+    [(80, True, 8), (96, False, 8), (56, True, 8), (130, True, 8), (76, False, 7), (104, False, 13)],
+]
+
+
+def _agreement(cands: list[str]) -> float:
+    """Character-level agreement among candidates of the modal length (1.0 = unanimous)."""
+    from parsers.bac_parser import char_vote
+    if not cands:
+        return 0.0
+    return char_vote(cands)[1]
+
+
+def _latin_variants(crop: np.ndarray, whitelist: str | None = None, target_agreement: float = 0.93) -> list[str]:
+    """OCR one crop of case-sensitive alphanumerics with several recipes (scale x threshold
+    x page-segmentation mode). More recipes are only run while the readings still
+    disagree, so clean codes cost 4 OCR calls and hard ones up to 16."""
     outs: list[str] = []
-    for height in (72, 100):
-        for binar in (True, False):
-            prep = prepare_for_ocr(crop, height, binarize_crop=binar)
-            for psm in (7, 13):
-                res = ocr.read_latin(prep, psm=psm, whitelist=whitelist or ocr.CODE_WHITELIST)
-                txt = res.text.replace(" ", "").replace("\n", "")
-                if txt:
-                    outs.append(txt)
+    for phase in _VARIANT_PHASES:
+        for height, binar, psm in phase:
+            prep = prepare_for_ocr(crop, height, binarize_crop=binar, pad=36)
+            res = ocr.read_latin(prep, psm=psm, whitelist=whitelist or ocr.CODE_WHITELIST)
+            txt = res.text.replace(" ", "").replace("\n", "")
+            if txt:
+                outs.append(txt)
+        if len(outs) >= 4 and _agreement(outs) >= target_agreement:
+            break
     return outs
+
+
+def glyph_heights(crop_gray: np.ndarray) -> list[float]:
+    """Heights of the glyphs of a single-line crop, left to right, relative to the tallest.
+    Dots of i / j are merged into their stem. Used to tell x from X, s from S ..."""
+    if crop_gray.size == 0:
+        return []
+    blur = cv2.GaussianBlur(crop_gray, (3, 3), 0)
+    otsu, _ = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    bw = (blur < otsu).astype(np.uint8) * 255
+    n, _, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
+    boxes = [(int(x), int(y), int(w), int(h)) for x, y, w, h, a in stats[1:] if a >= 12]
+    if not boxes:
+        return []
+    tall = max(b[3] for b in boxes)
+    boxes = [b for b in boxes if b[3] >= 0.25 * tall or b[2] * b[3] > 0]     # drop dust
+    boxes.sort()
+    merged: list[list[int]] = []
+    for x, y, w, h in boxes:
+        if merged and x < merged[-1][0] + merged[-1][2] and (x + w) <= merged[-1][0] + merged[-1][2] + 2:
+            m = merged[-1]                                  # overlaps horizontally: dot over a stem
+            top, bot = min(m[1], y), max(m[1] + m[3], y + h)
+            m[1], m[3] = top, bot - top
+        else:
+            merged.append([x, y, w, h])
+    ref = max(m[3] for m in merged)
+    return [round(m[3] / ref, 3) for m in merged]
 
 
 def _word_clusters(strip_bw: np.ndarray, gap: int) -> list[tuple[int, int]]:
@@ -484,6 +553,7 @@ def read_codes(layout: PageLayout, zones: RawZones) -> None:
             if 0.05 * W <= x1c - x0c <= 0.17 * W:
                 crop = zone_gray[max(0, b0 - 8):b1 + 8, max(0, x0c - 8):x1c + 9]
                 zones.secret_candidates = _latin_variants(crop, no_sym)
+                zones.secret_glyph_heights = glyph_heights(crop)
                 break
 
 

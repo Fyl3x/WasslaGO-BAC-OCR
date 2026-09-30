@@ -16,8 +16,8 @@ from rapidfuzz import fuzz
 
 from services.models import DERIVED, LOW, MISSING, OK, Field
 from .lexicon import fix_specialty, fix_wilaya, fix_words
-from .normalize import (MONTHS_AR, arabic_only, clean_line, normalize_ar, strip_marks,
-                        to_ascii_digits)
+from .normalize import (MONTHS_AR, arabic_only, clean_line, normalize_ar, skeleton_ar,
+                        strip_marks, to_ascii_digits)
 from .subjects import match_branch
 
 # key, Arabic label, English label  (order = display order)
@@ -114,10 +114,15 @@ def _tokens_after_number(tokens: list[str]) -> list[str]:
 # individual parsers (return plain values; None when not found)
 # ---------------------------------------------------------------------------
 def parse_year(text: str, numbers: list[str], digits_line: str = "") -> int | None:
+    """Session year: the 4-digit year most of the reads agree on (ties -> first seen)."""
     pool = " ".join([to_ascii_digits(text), *numbers, digits_line])
     years = [int(y) for y in re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", pool)]
     years = [y for y in years if 1962 <= y <= date.today().year + 1]
-    return years[0] if years else None
+    if not years:
+        return None
+    counts = Counter(years)
+    top = max(counts.values())
+    return next(y for y in years if counts[y] == top)
 
 
 def parse_date_digits(s: str) -> tuple[int, int, int] | None:
@@ -191,7 +196,7 @@ def parse_birth_place(text: str) -> str | None:
 
 
 def _clean_place(tokens: list[str]) -> str | None:
-    toks = list(tokens)
+    toks = re.sub(r"\s*[-–—]\s*", " - ", " ".join(tokens)).split()   # 'وهران-' -> 'وهران -'
     while toks and (normalize_ar(toks[0]) in {"ب", "بـ"} or len(normalize_ar(toks[0])) <= 1
                     or not re.search(r"[ء-ي]", toks[0])):
         toks.pop(0)
@@ -235,14 +240,21 @@ def parse_institution(text: str, numbers: list[str]) -> tuple[str | None, str | 
     body = strip_label(text, "institution")
     code = _institution_code(numbers, body)
     # the name is everything before the '/' (or code)
-    name_part = re.split(r"[/\\]", to_ascii_digits(body))[0] if re.search(r"[/\\]", body) else body
+    if re.search(r"[/\\]", body):
+        before, after = re.split(r"[/\\]", to_ascii_digits(body), maxsplit=1)
+        tail = " ".join(t for t in after.split() if re.search(r"[ء-ي]", t))     # text-layer PDFs
+        name_part = before.rstrip(" -") + (" - " + tail if tail else "")
+    else:
+        name_part = body
     name_part = re.sub(r"\d+", " ", name_part)
     toks = []
     for t in name_part.split():
         if t in {"-", "–", "—"}:
             toks.append("-")
         elif re.search(r"[ء-ي]", t):
-            toks.append(strip_marks("".join(ch for ch in t if re.match(r"[ء-يً-ٟ]", ch))))
+            word = strip_marks("".join(ch for ch in t if re.match(r"[ء-يً-ٟ]", ch)))
+            if len(normalize_ar(word)) >= 2:          # a lone letter is OCR debris
+                toks.append(word)
     name = " ".join(toks).strip(" -")
     if name:
         name = fix_words(name)
@@ -282,7 +294,7 @@ def parse_issue(text: str, numbers: list[str], digits_line: str = "") -> tuple[s
     t = clean_line(text)
     place = None
     flat = normalize_ar(t)
-    if "جزائر" in flat or fuzz.partial_ratio("الجزائر", flat) >= 80:
+    if "جزائر" in flat or fuzz.partial_ratio(skeleton_ar("الجزائر"), skeleton_ar(t)) >= 80:
         place = "الجزائر"          # the printed label is "حرر بالجزائر في"
     elif "حر" in flat:
         m = re.search(r"ب(ال[ء-ي]{3,})", strip_marks(t))
@@ -345,12 +357,35 @@ def parse_serial(cands: list[str]) -> tuple[str | None, float]:
     pre, a1 = char_vote(prefixes)
     ident, a2 = char_vote(ids)
     suf, a3 = char_vote(suffixes)
-    return f"{pre}/{ident}USEPWD_BC---{suf}", (a1 + a2 + a3) / 3
+    # agreement among only two or three parsable reads proves little: scale it down
+    support = min(1.0, 0.5 + len(prefixes) / 8.0)
+    return f"{pre}/{ident}USEPWD_BC---{suf}", (a1 + a2 + a3) / 3 * support
 
 
-def parse_secret(cands: list[str]) -> tuple[str | None, float]:
+_CASE_PAIRS = set("cosvwxz")      # letters whose upper / lower case differ only by size
+
+
+def fix_case_by_height(code: str, heights: list[float]) -> str:
+    """OCR often confuses x/X, s/S, o/O ... Glyph heights settle it: a capital reaches the
+    full cap height, a lower-case letter only ~70 % of it. Only applied when the number of
+    detected glyphs equals the length of the code (otherwise the alignment is unreliable)."""
+    if len(heights) != len(code) or len(code) < 4:
+        return code
+    out = []
+    for ch, h in zip(code, heights):
+        if ch.lower() in _CASE_PAIRS:
+            out.append(ch.upper() if h >= 0.86 else ch.lower())
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def parse_secret(cands: list[str], heights: list[float] | None = None) -> tuple[str | None, float]:
     cands = [re.sub(r"[^A-Za-z0-9]", "", c) for c in cands]
-    return char_vote(cands, 5, 10)
+    code, agree = char_vote(cands, 5, 10)
+    if code and heights:
+        code = fix_case_by_height(code, heights)
+    return code, agree
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +401,8 @@ def build_fields_from_zones(zones, table_result, fields: dict[str, Field] | None
     L = zones.lines
 
     # registration number ------------------------------------------------------
-    reg, agree = char_vote([c for c in zones.reg_candidates if 7 <= len(c) <= 9], 7, 9)
+    eight = [c for c in zones.reg_candidates if len(c) == 8]   # registration numbers have 8 digits
+    reg, agree = char_vote(eight or [c for c in zones.reg_candidates if 7 <= len(c) <= 9], 7, 9)
     if reg:
         fields["registration_number"].set(reg, OK if agree > 0.6 and len(reg) == 8 else LOW,
                                           0.55 + 0.4 * agree, raw=" | ".join(zones.reg_candidates[:3]))
@@ -460,11 +496,16 @@ def build_fields_from_zones(zones, table_result, fields: dict[str, Field] | None
         if idate:
             yr = fields["session_year"].value
             ok = (yr is None) or (int(idate[:4]) in (yr, yr + 1))
+            if not ok and yr is not None:
+                # session year and issue year disagree: one of the two reads is wrong -> flag both
+                sy = fields["session_year"]
+                sy.status, sy.confidence = LOW, min(sy.confidence, 0.45)
+                sy.note = f"does not match the issue date year ({idate[:4]}) - verify"
             fields["issue_date"].set(idate, OK if ok else LOW, 0.92 if ok else 0.45, raw=iss.text,
                                      note=None if ok else "issue year does not match the session year")
 
     # codes --------------------------------------------------------------------------------
-    secret, agree = parse_secret(zones.secret_candidates)
+    secret, agree = parse_secret(zones.secret_candidates, zones.secret_glyph_heights)
     if secret:
         fields["secret_code"].set(secret, OK if agree >= 0.8 else LOW, 0.4 + 0.55 * agree,
                                   raw=" | ".join(zones.secret_candidates[:4]),
@@ -486,12 +527,3 @@ def looks_like_transcript_text(text: str) -> bool:
     rev = normalize_ar(strip_marks(text[::-1]))
     hits_rev = sum(1 for w in ("كشف", "النقاط", "بكالوريا", "المجموع", "المعدل") if w in rev)
     return max(hits, hits_rev) >= 3 or "USEPWD" in text
-
-
-def _orient(lines: list[str]) -> list[str]:
-    """Some PDF generators store Arabic in visual (reversed) order. Detect and undo."""
-    def score(ls):
-        j = normalize_ar(" ".join(ls))
-        return sum(j.count(w) for w in ("بكالوريا", "المجموع", "المعدل", "السيد", "المؤسسة", "شعبة"))
-    rev = [ln[::-1] for ln in lines]
-    return rev if score(rev) > score(lines) else lines

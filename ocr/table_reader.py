@@ -189,13 +189,17 @@ def _read_subject(gray_cell: np.ndarray) -> tuple[str, float]:
     cleaned, state = _clean_cell(gray_cell)
     if state.empty or state.dash:
         return "", -1.0
+    best: tuple[float, str, float] | None = None
     prepared = prepare_for_ocr(_erase_rules(gray_cell), target_height=84)
-    res = ocr.read_arabic(prepared, psm=7)
-    if res.confidence < 55 or len(res.text.replace(" ", "")) < 4:
-        alt = ocr.read_arabic(prepared, psm=13)
-        if alt.confidence > res.confidence:
-            res = alt
-    return res.text.replace("\n", " ").strip(), res.confidence
+    for psm, mixed in ((7, False), (13, False), (7, True)):
+        res = ocr.read_arabic(prepared, psm=psm, mixed=mixed)
+        arabic_letters = sum(1 for ch in res.text if "\u0621" <= ch <= "\u064A")
+        score = res.confidence + min(arabic_letters, 20)      # prefer readings that contain Arabic
+        if best is None or score > best[0]:
+            best = (score, res.text, res.confidence)
+        if res.confidence >= 80 and arabic_letters >= 5:
+            break
+    return best[1].replace("\n", " ").strip(), best[2]
 
 
 def _row_trusted(row: RawRow, row_options) -> bool:
@@ -270,9 +274,19 @@ def read_table(layout: PageLayout) -> RawTable:
             else:
                 setattr(rows[r], kind, out)
 
+    from parsers.table_parser import is_blank, is_not_taken, row_options
+
+    # An optional subject that was not sat prints only its coefficient (grade / total are
+    # '--'). Nothing cross-checks that digit, so read it at every threshold and let them vote.
+    for r in rows:
+        if is_not_taken(r):
+            xa, xb = t.col_coef
+            for frac in (0.85, 1.6):
+                fresh = _cell_candidates(gray[r.y0:r.y1, xa + inset:xb - inset], "coef", frac)
+                r.coef.candidates += fresh.candidates
+
     # Escalation: rows whose numbers do not reconcile are re-read with looser ink thresholds
     # (faint photos lose thin strokes under the strict threshold) and the candidates merged.
-    from parsers.table_parser import is_blank, is_not_taken, row_options
     for frac in (0.85, 1.6):
         bad = [r for r in rows if not (is_blank(r) or is_not_taken(r))
                and not _row_trusted(r, row_options)]

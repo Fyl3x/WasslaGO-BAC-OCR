@@ -81,6 +81,25 @@ def row_options(row: RawRow) -> list[RowOption]:
     return sorted(opts.values(), key=lambda o: -o.score)
 
 
+OUT_OF_BRANCH_MIN_SCORE = 85.0
+
+
+def _match_row(text: str, vocab: Vocabulary, order: list[str], expected: str | None):
+    """Match a subject name. With a known branch, look among that branch's subjects first;
+    a subject outside the branch is only accepted on a very strong match, otherwise the row
+    is left unnamed so the row-order inference can fill it in."""
+    if order:
+        sub, score = match_subject(text, vocab, candidates=order, expected_id=expected)
+        if sub is not None and score >= Config.SUBJECT_MATCH_THRESHOLD:
+            return sub, score
+        sub2, score2 = match_subject(text, vocab)
+        if sub2 is not None and score2 >= OUT_OF_BRANCH_MIN_SCORE:
+            return sub2, score2
+        return None, max(score, 0.0)
+    sub, score = match_subject(text, vocab, expected_id=expected)
+    return (sub, score) if score >= Config.SUBJECT_MATCH_THRESHOLD else (None, score)
+
+
 def is_blank(row: RawRow) -> bool:
     cells = (row.grade, row.coef, row.total)
     return all(c.empty or c.dash for c in cells) and not any(c.candidates for c in cells) \
@@ -125,7 +144,7 @@ def parse_table(raw: RawTable, branch: Branch | None, vocab: Vocabulary | None =
     provisional = []
     for k, (r, opts, not_taken) in enumerate(solved):
         exp = order[r.index] if r.index < len(order) else None
-        sub, score = match_subject(r.subject_text, vocab, expected_id=exp)
+        sub, score = _match_row(r.subject_text, vocab, order, exp)
         provisional.append([r, sub, score, exp])
     # resolve duplicates: best score keeps the subject, others are re-matched without it
     for _ in range(3):
@@ -140,7 +159,7 @@ def parse_table(raw: RawTable, branch: Branch | None, vocab: Vocabulary | None =
                 idxs.sort(key=lambda i: -provisional[i][2])
                 for i in idxs[1:]:
                     r, _, _, exp = provisional[i]
-                    others = [s for s in vocab.subjects if s != sid]
+                    others = [s for s in (order or list(vocab.subjects)) if s != sid]
                     provisional[i][1], provisional[i][2] = match_subject(r.subject_text, vocab, others, exp)
         if not dup:
             break
@@ -160,7 +179,7 @@ def parse_table(raw: RawTable, branch: Branch | None, vocab: Vocabulary | None =
         if not_taken:
             coef_c = _aggregate(r.coef, coef_values)
             coef = int(max(coef_c, key=coef_c.get)) if coef_c else None
-            if coef is not None and coef_c[float(coef)] < 0.99:   # the reads disagreed
+            if coef is not None and coef_c[float(coef)] < 0.6:    # the reads disagreed
                 row_notes.append("coefficient read unreliably")
                 coef = None
             rows.append(GradeRow(k, name, r.subject_text, round(score, 1), None, coef, None,
