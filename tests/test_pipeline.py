@@ -78,3 +78,20 @@ def test_rejects_bad_extension_and_bad_ids(client):
     assert r.status_code == 400
     assert client.get("/result/../../etc/passwd").status_code == 404
     assert client.get("/files/zzzz/x.png").status_code == 404
+
+
+# ---------------------------------------------------------------- production hardening
+def test_basic_auth_protects_site_but_not_health(tmp_path, monkeypatch):
+    from config import Config
+    monkeypatch.setattr(Config, "UPLOAD_DIR", tmp_path)
+    monkeypatch.setattr(Config, "BASIC_AUTH_USER", "admin")
+    monkeypatch.setattr(Config, "BASIC_AUTH_PASSWORD", "s3cret-pass")
+    import base64
+    import app as app_module
+    c = app_module.create_app().test_client()
+    assert c.get("/").status_code == 401
+    assert c.get("/health").status_code in (200, 503)               # container health check stays open
+    bad = {"Authorization": "Basic " + base64.b64encode(b"admin:wrong").decode()}
+    good = {"Authorization": "Basic " + base64.b64encode(b"admin:s3cret-pass").decode()}
+    assert c.get("/", headers=bad).status_code == 401
+    assert c.get("/", headers=good).status_code == 200

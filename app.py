@@ -7,8 +7,10 @@ polls for completion, so the request never times out.
 """
 from __future__ import annotations
 
+import hmac
 import json
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -33,6 +35,25 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
     Config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------------ access control
+    @app.before_request
+    def _basic_auth():
+        user, pwd = Config.BASIC_AUTH_USER, Config.BASIC_AUTH_PASSWORD
+        if not (user and pwd) or request.path == "/health":
+            return None
+        auth = request.authorization
+        if auth and hmac.compare_digest(auth.username or "", user) and \
+                hmac.compare_digest(auth.password or "", pwd):
+            return None
+        return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="BAC OCR"'})
+
+    @app.after_request
+    def _security_headers(resp):
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("Referrer-Policy", "same-origin")
+        resp.headers.setdefault("Cache-Control", "no-store")
+        return resp
 
     # ------------------------------------------------------------------ pages
     @app.get("/")
@@ -168,7 +189,26 @@ def _set(job_id: str, **kw) -> None:
         _jobs.setdefault(job_id, {"started": time.time(), "filename": ""}).update(kw)
 
 
+def _cleanup_loop() -> None:
+    """Delete finished uploads/results older than RETENTION_HOURS (they hold personal data)."""
+    while True:
+        try:
+            cutoff = time.time() - Config.RETENTION_HOURS * 3600
+            for d in Config.UPLOAD_DIR.iterdir():
+                if d.is_dir() and JOB_ID_RE.match(d.name) and d.stat().st_mtime < cutoff:
+                    with _jobs_lock:
+                        if _jobs.get(d.name, {}).get("state") in ("queued", "running"):
+                            continue
+                        _jobs.pop(d.name, None)
+                    shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
+        time.sleep(1800)
+
+
 app = create_app()
+if Config.RETENTION_HOURS > 0:
+    threading.Thread(target=_cleanup_loop, daemon=True, name="retention-cleanup").start()
 
 if __name__ == "__main__":
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)

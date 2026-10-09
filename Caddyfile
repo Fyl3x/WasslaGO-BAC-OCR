@@ -1,0 +1,13 @@
+# DOMAIN=ocr.example.com  -> automatic HTTPS
+# DOMAIN unset (":80")    -> plain HTTP on the server IP
+{$DOMAIN::80} {
+	request_body {
+		max_size 30MB
+	}
+	reverse_proxy app:5000 {
+		transport http {
+			response_header_timeout 180s
+		}
+	}
+	encode gzip
+}

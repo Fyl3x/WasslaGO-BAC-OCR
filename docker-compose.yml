@@ -1,0 +1,41 @@
+# docker compose up -d --build
+services:
+  app:
+    build: .
+    image: bac-ocr:latest
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      UPLOAD_DIR: /data/uploads
+      OCR_WORKERS: ${OCR_WORKERS:-2}
+    volumes:
+      - uploads:/data
+    expose:
+      - "5000"
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+
+  # HTTPS reverse proxy (automatic Let's Encrypt certificate when DOMAIN is a real domain)
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  uploads:
+  caddy_data:
+  caddy_config:

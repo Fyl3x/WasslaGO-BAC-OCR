@@ -27,6 +27,12 @@ class Config:
     HOST = os.environ.get("HOST", "127.0.0.1")
     PORT = int(os.environ.get("PORT", "5000"))
     DEBUG = _env_bool("FLASK_DEBUG", False)
+    # Optional HTTP Basic auth for the whole site (except /health). Strongly recommended on a
+    # public server: transcripts contain personal data.
+    BASIC_AUTH_USER = os.environ.get("BASIC_AUTH_USER", "")
+    BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "")
+    # Uploads + results older than this are deleted automatically (0 = keep forever).
+    RETENTION_HOURS = float(os.environ.get("RETENTION_HOURS", "24"))
 
     # --- Tesseract -------------------------------------------------------
     # Path to the tesseract binary (leave empty to use PATH).

@@ -174,6 +174,16 @@ All optional, via environment variables or `.env` (see `.env.example`):
 Rules are data, not code: add subjects, aliases and branch row orders in `data/subjects.json`, and
 wilayas / common institution words in `data/lexicon.json`.
 
+## Docker / hosting
+
+```bash
+cp .env.example .env     # set SECRET_KEY, BASIC_AUTH_USER / BASIC_AUTH_PASSWORD, DOMAIN
+docker compose up -d --build
+```
+
+The image bundles Tesseract (Arabic) and runs gunicorn behind a Caddy proxy with automatic HTTPS.
+Step-by-step Hostinger VPS guide: [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## 5. Accuracy and validation
 
 **How correctness is checked (built into every result):** each row must satisfy `grade x coefficient = total`;
