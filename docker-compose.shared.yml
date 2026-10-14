@@ -1,0 +1,27 @@
+# For a server that ALREADY runs other containers / its own nginx on ports 80 and 443.
+# Starts only the OCR app, bound to 127.0.0.1:8090 (not reachable from the internet).
+#   docker compose -f docker-compose.shared.yml up -d --build
+services:
+  bac-ocr:
+    build: .
+    image: bac-ocr:latest
+    container_name: bac-ocr
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      UPLOAD_DIR: /data/uploads
+      OCR_WORKERS: ${OCR_WORKERS:-2}
+    ports:
+      - "127.0.0.1:8090:5000"
+    volumes:
+      - bac_ocr_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "2"
+
+volumes:
+  bac_ocr_data:

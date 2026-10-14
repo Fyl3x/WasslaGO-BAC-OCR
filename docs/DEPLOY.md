@@ -65,3 +65,21 @@ Slow or out of memory? Lower `OCR_WORKERS` in `.env` (default 2 in compose) or m
 * One document is processed at a time (queued); the UI polls until done.
 * To use the better Arabic model, put `ara.traineddata` + `eng.traineddata` from *tessdata_best* in a folder, mount it into the container and set `TESSDATA_DIR` (see README).
 * Hostinger hPanel also has a **Docker Manager** that can deploy a compose file straight from a Git URL; use this repo's `docker-compose.yml` and add the `.env` values as environment variables there.
+
+## Server that already hosts other apps (shared server)
+If `docker ps` shows other containers or an nginx using ports 80/443, **do not use `docker-compose.yml`**
+(its Caddy proxy would clash). Use the shared file instead:
+
+```bash
+docker compose -f docker-compose.shared.yml up -d --build
+docker compose -f docker-compose.shared.yml ps
+curl -s http://127.0.0.1:8090/health
+```
+The app listens only on `127.0.0.1:8090`. To try it from your PC without exposing anything:
+```bash
+ssh -L 8090:localhost:8090 USER@SERVER      # keep this window open
+# then open http://localhost:8090
+```
+To publish it, the server owner adds a proxy rule in the existing nginx (e.g. a `bac-ocr.example.com`
+server block with `proxy_pass http://<host-gateway>:8090;`, `client_max_body_size 30m;`,
+`proxy_read_timeout 180s;`) and a certificate for that name.
